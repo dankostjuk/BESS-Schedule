@@ -1,0 +1,943 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Electricity Price Prediction</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+  <style>
+    :root {
+      --bg:     #13131a;
+      --sf:     #1a1a28;
+      --sf2:    #22223a;
+      --sf3:    #2c2c48;
+      --bd:     #32324e;
+      --text:   #cdd6f4;
+      --sub:    #8890aa;
+      --blue:   #89b4fa;
+      --red:    #f38ba8;
+      --green:  #a6e3a1;
+      --yellow: #f9e2af;
+      --mauve:  #cba6f7;
+      --actual: #e2e2f8;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--sf);
+      border-bottom: 1px solid var(--bd);
+      flex-shrink: 0;
+      height: 44px;
+      padding: 0 16px;
+    }
+    header h1 { font-size: 15px; font-weight: 600; white-space: nowrap; }
+    #dataInfo  { font-size: 13px; color: var(--sub); font-family: monospace; }
+
+    .split-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+    .h-divider {
+      flex-shrink: 0;
+      height: 34px;
+      background: var(--sf);
+      border-top: 1px solid var(--bd);
+      border-bottom: 1px solid var(--bd);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+    }
+    .h-divider .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--sub);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .controls {
+      flex-shrink: 0;
+      background: var(--sf);
+      border-bottom: 1px solid var(--bd);
+      padding: 6px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+      min-height: 30px;
+    }
+    .ctrl-lbl {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--sub);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .vdiv { width: 1px; height: 24px; background: var(--bd); flex-shrink: 0; }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      user-select: none;
+      transition: opacity 0.15s, background 0.15s;
+    }
+    .toggle:hover { background: var(--sf3); }
+    .toggle.off { opacity: 0.32; }
+    .toggle input[type="checkbox"] { display: none; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    input[type="date"], select {
+      background: var(--sf2);
+      border: 1px solid var(--bd);
+      color: var(--text);
+      padding: 4px 9px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-family: monospace;
+      outline: none;
+      color-scheme: dark;
+    }
+    select { min-width: 260px; }
+    input[type="date"]:hover, select:hover { border-color: #4a4a72; }
+    input[type="date"]:focus, select:focus { border-color: var(--blue); }
+
+    .btn {
+      background: var(--sf2);
+      border: 1px solid var(--bd);
+      color: var(--sub);
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn:hover:not(:disabled) { background: var(--sf3); border-color: #4a4a72; color: var(--text); }
+    .btn:disabled { opacity: 0.30; cursor: not-allowed; }
+    .btn.accent  { background: rgba(137,180,250,.10); border-color: rgba(137,180,250,.40); color: var(--blue); }
+    .btn.run     { background: rgba(166,227,161,.10); border-color: rgba(166,227,161,.40); color: var(--green); font-weight: 600; }
+    .btn.danger  { background: rgba(243,139,168,.08); border-color: rgba(243,139,168,.28); color: var(--red); }
+
+    .chart-wrap {
+      flex: 1;
+      min-height: 0;
+      padding: 8px 12px 4px;
+      position: relative;
+    }
+    canvas { width: 100% !important; height: 100% !important; }
+
+    .charts-row {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+    }
+    .charts-row .chart-wrap { flex: 1; }
+    .chart-vsep {
+      width: 1px;
+      background: var(--bd);
+      flex-shrink: 0;
+      margin: 8px 0;
+    }
+
+    .metrics-strip {
+      flex-shrink: 0;
+      background: var(--sf);
+      border-top: 1px solid var(--bd);
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      min-height: 36px;
+    }
+    .m-method, .m-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 4px;
+      background: var(--sf2);
+    }
+    .m-method { border-left: 2px solid transparent; }
+    .m-method .mm-title { font-size: 12px; font-weight: 700; margin-right: 4px; }
+    .m-method .mm-item,
+    .m-chip .mk {
+      font-size: 12px;
+      font-family: monospace;
+      color: var(--sub);
+    }
+    .m-method .mm-val,
+    .m-chip .mv {
+      font-size: 12px;
+      font-family: monospace;
+      font-weight: 700;
+    }
+    .strip-sep { width: 1px; height: 22px; background: var(--bd); flex-shrink: 0; }
+    .strip-lbl { font-size: 12px; color: #484868; font-family: monospace; margin-right: 2px; }
+
+    .bess-status { display: none; align-items: center; gap: 6px; font-size: 13px; font-family: monospace; }
+    .bess-status.loading { display: flex; color: var(--yellow); }
+    .bess-status.error { display: flex; color: var(--red); max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .spinner {
+      width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0;
+      border: 2px solid rgba(249,226,175,.25); border-top-color: var(--yellow);
+      animation: spin .75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Electricity Price Prediction</h1>
+  <span id="dataInfo">Loading...</span>
+</header>
+
+<div class="split-view">
+
+  <section class="panel">
+    <div class="controls">
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Series</span>
+
+        <label class="toggle" id="tgl-actual" style="color:var(--actual)">
+          <input type="checkbox" id="cb-actual" checked onchange="onToggle('actual', this.checked)">
+          <span class="dot" style="background:var(--actual)"></span>Actual
+        </label>
+
+        <label class="toggle" id="tgl-hgbr" style="color:var(--blue)">
+          <input type="checkbox" id="cb-hgbr" checked onchange="onToggle('hgbr', this.checked)">
+          <span class="dot" style="background:var(--blue)"></span>HGBR
+        </label>
+
+        <label class="toggle" id="tgl-catboost" style="color:var(--red)">
+          <input type="checkbox" id="cb-catboost" checked onchange="onToggle('catboost', this.checked)">
+          <span class="dot" style="background:var(--red)"></span>CatBoost
+        </label>
+
+        <label class="toggle" id="tgl-xgboost" style="color:var(--green)">
+          <input type="checkbox" id="cb-xgboost" checked onchange="onToggle('xgboost', this.checked)">
+          <span class="dot" style="background:var(--green)"></span>XGBoost
+        </label>
+
+        <div class="vdiv"></div>
+
+        <span class="ctrl-lbl">Range</span>
+        <input type="date" id="fromDate" onchange="applySharedRange()">
+        <span style="color:var(--sub);font-size:11px">to</span>
+        <input type="date" id="toDate" onchange="applySharedRange()">
+
+        <button class="btn accent" onclick="shiftRange(1)">+1 Day</button>
+        <button class="btn danger" onclick="resetRange()">Reset</button>
+        <button class="btn" onclick="resetZoom()">Reset Zoom</button>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <canvas id="myChart"></canvas>
+    </div>
+
+    <div class="metrics-strip">
+      <span class="strip-lbl">Metrics</span>
+
+      <div class="m-method" style="border-color:var(--blue)">
+        <span class="mm-title" style="color:var(--blue)">HGBR</span>
+        <span class="mm-item">MAE</span><span class="mm-val" id="hgbr-mae" style="color:#90c890">-</span>
+        <span class="mm-item" style="margin-left:6px">RMSE</span><span class="mm-val" id="hgbr-rmse" style="color:#90b8d8">-</span>
+        <span class="mm-item" style="margin-left:6px">wMAPE</span><span class="mm-val" id="hgbr-mape" style="color:#d8c890">-</span>
+      </div>
+
+      <div class="strip-sep"></div>
+
+      <div class="m-method" style="border-color:var(--red)">
+        <span class="mm-title" style="color:var(--red)">CatBoost</span>
+        <span class="mm-item">MAE</span><span class="mm-val" id="catboost-mae" style="color:#90c890">-</span>
+        <span class="mm-item" style="margin-left:6px">RMSE</span><span class="mm-val" id="catboost-rmse" style="color:#90b8d8">-</span>
+        <span class="mm-item" style="margin-left:6px">wMAPE</span><span class="mm-val" id="catboost-mape" style="color:#d8c890">-</span>
+      </div>
+
+      <div class="strip-sep"></div>
+
+      <div class="m-method" style="border-color:var(--green)">
+        <span class="mm-title" style="color:var(--green)">XGBoost</span>
+        <span class="mm-item">MAE</span><span class="mm-val" id="xgboost-mae" style="color:#90c890">-</span>
+        <span class="mm-item" style="margin-left:6px">RMSE</span><span class="mm-val" id="xgboost-rmse" style="color:#90b8d8">-</span>
+        <span class="mm-item" style="margin-left:6px">wMAPE</span><span class="mm-val" id="xgboost-mape" style="color:#d8c890">-</span>
+      </div>
+
+      <span class="strip-lbl" id="pointRange" style="margin-left:auto"></span>
+    </div>
+  </section>
+
+  <div class="h-divider">
+    <span class="panel-title">BESS Schedule</span>
+  </div>
+
+  <section class="panel">
+    <div class="controls">
+      <div class="ctrl-row">
+        <span class="ctrl-lbl">Interval file</span>
+
+        <select id="bessFile">
+          <option value="">select prediction_interval_*.csv</option>
+        </select>
+
+        <button class="btn run" id="runBtn" onclick="runBessEval()" disabled>Run</button>
+
+        <div class="bess-status" id="bessStatus">
+          <div class="spinner"></div>
+          <span id="bessStatusTxt">Running optimisation...</span>
+        </div>
+
+        <div class="vdiv"></div>
+
+        <label class="toggle" id="btgl-netPred" style="color:var(--blue)">
+          <input type="checkbox" id="bcb-netPred" checked onchange="onBTgl('netPred',this.checked)">
+          <span class="dot" style="background:var(--blue)"></span>Net Pred
+        </label>
+
+        <label class="toggle" id="btgl-netTrue" style="color:var(--green)">
+          <input type="checkbox" id="bcb-netTrue" checked onchange="onBTgl('netTrue',this.checked)">
+          <span class="dot" style="background:var(--green)"></span>Net True
+        </label>
+
+        <label class="toggle" id="btgl-socPred" style="color:var(--mauve)">
+          <input type="checkbox" id="bcb-socPred" checked onchange="onBTgl('socPred',this.checked)">
+          <span class="dot" style="background:var(--mauve)"></span>SOC Pred
+        </label>
+
+        <label class="toggle" id="btgl-socTrue" style="color:var(--yellow)">
+          <input type="checkbox" id="bcb-socTrue" checked onchange="onBTgl('socTrue',this.checked)">
+          <span class="dot" style="background:var(--yellow)"></span>SOC True
+        </label>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-wrap">
+        <canvas id="bessChart"></canvas>
+      </div>
+      <div class="chart-vsep"></div>
+      <div class="chart-wrap">
+        <canvas id="profitChart"></canvas>
+      </div>
+    </div>
+
+    <div class="metrics-strip">
+      <span class="strip-lbl">Profit</span>
+
+      <div class="m-chip">
+        <span class="mk">Pred</span><span class="mv" id="bm-pred" style="color:var(--green)">-</span>
+      </div>
+      <div class="m-chip">
+        <span class="mk">True</span><span class="mv" id="bm-true" style="color:var(--blue)">-</span>
+      </div>
+      <div class="m-chip">
+        <span class="mk">Lost</span><span class="mv" id="bm-lost" style="color:var(--red)">-</span>
+      </div>
+      <div class="m-chip">
+        <span class="mk">Avg/day</span><span class="mv" id="bm-avg" style="color:var(--red)">-</span>
+      </div>
+
+      <div class="strip-sep"></div>
+
+      <span class="strip-lbl">Schedule match</span>
+      <div class="m-chip">
+        <span class="mk">Charge</span><span class="mv" id="bm-chm" style="color:var(--mauve)">-</span>
+      </div>
+      <div class="m-chip">
+        <span class="mk">Discharge</span><span class="mv" id="bm-dm" style="color:var(--mauve)">-</span>
+      </div>
+
+      <div class="strip-sep"></div>
+
+      <div class="m-chip">
+        <span class="mk">Days</span><span class="mv" id="bm-days" style="color:var(--text)">-</span>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  'use strict';
+
+  const DEFAULT_START = '2025-07-01';
+  const DEFAULT_END   = '2025-07-01';
+
+  function tsToMs(ts) { return Date.parse(ts.replace(' ', 'T') + ':00Z'); }
+  function dateToMs(d) { return Date.parse(d + 'T00:00:00Z'); }
+  function msToDate(ms) { return new Date(ms).toISOString().slice(0, 10); }
+
+  // Shift UTC ms so Chart.js (which renders in browser local time) displays UTC values.
+  // In Prague UTC+2: getTimezoneOffset() = -120 → subtract 2 h → label reads UTC.
+  function tsToDisplayMs(ts) {
+    const ms = tsToMs(ts);
+    return ms + new Date(ms).getTimezoneOffset() * 60000;
+  }
+
+  function clampDateStr(value, min, max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
+  }
+
+  function commonChartOpts(yTitle, spanDays) {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 150 },
+      parsing: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: {
+          type: 'time',
+          time: {
+            unit: spanDays <= 2 ? 'hour' : 'day',
+            displayFormats: { hour: 'MM-dd HH:mm', day: 'MMM dd' }
+          },
+          grid:   { color: 'rgba(80,84,128,.25)' },
+          border: { color: '#38385a' },
+          ticks:  { color: '#6870a0', maxTicksLimit: 8, font: { family: 'monospace', size: 12 } }
+        },
+        y: {
+          grid:   { color: 'rgba(80,84,128,.25)' },
+          border: { color: '#38385a' },
+          ticks:  { color: '#6870a0', font: { family: 'monospace', size: 12 } },
+          title:  { display: true, text: yTitle, color: '#505070', font: { size: 12 } }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(16,16,28,.96)',
+          titleColor: '#cdd6f4',
+          bodyColor: '#8890b8',
+          borderColor: '#38385a',
+          borderWidth: 1,
+          padding: 9,
+          titleFont: { family: 'monospace', size: 13 },
+          bodyFont:  { family: 'monospace', size: 13 }
+        }
+      }
+    };
+  }
+
+  let allData = [];
+  let chart = null;
+
+  const SERIES = [
+    { key:'actual',   field:'yTrue',          label:'Actual',   color:'rgba(226,226,248,.90)', dash:[] },
+    { key:'hgbr',     field:'yPredHgbr',      label:'HGBR',     color:'rgba(137,180,250,.90)', dash:[8,4] },
+    { key:'catboost', field:'yPredCatboost',  label:'CatBoost', color:'rgba(243,139,168,.90)', dash:[8,4] },
+    { key:'xgboost',  field:'yPredXgboost',   label:'XGBoost',  color:'rgba(166,227,161,.90)', dash:[8,4] },
+  ];
+  const PT_METRICS = [
+    { id:'hgbr',     field:'yPredHgbr' },
+    { id:'catboost', field:'yPredCatboost' },
+    { id:'xgboost',  field:'yPredXgboost' },
+  ];
+
+  let bessAllData = [];
+  let bessAllDaily = [];
+  let bessChart = null;
+  let profitChart = null;
+
+  const BESS_SERIES = [
+    { key:'netPred', label:'Net Pred', color:'rgba(137,180,250,.90)', dash:[],    w:1.7, cb:'bcb-netPred', axis:'y'  },
+    { key:'netTrue', label:'Net True', color:'rgba(166,227,161,.90)', dash:[],    w:1.7, cb:'bcb-netTrue', axis:'y'  },
+    { key:'socPred', label:'SOC Pred', color:'rgba(203,166,247,.85)', dash:[4,2], w:1.4, cb:'bcb-socPred', axis:'y2' },
+    { key:'socTrue', label:'SOC True', color:'rgba(249,226,175,.85)', dash:[4,2], w:1.4, cb:'bcb-socTrue', axis:'y2' },
+  ];
+
+  async function initPoint() {
+    const res = await fetch('/api/data');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    allData = await res.json();
+    if (!allData.length) throw new Error('No point data returned');
+
+    const min = allData[0].ts.slice(0,10);
+    const max = allData.at(-1).ts.slice(0,10);
+    const start = clampDateStr(DEFAULT_START, min, max);
+    const end   = clampDateStr(DEFAULT_END,   min, max);
+
+    document.getElementById('dataInfo').textContent =
+            `${allData.length.toLocaleString()} samples | ${min} to ${max}`;
+
+    for (const id of ['fromDate','toDate']) {
+      const el = document.getElementById(id);
+      el.min = min;
+      el.max = max;
+    }
+
+    document.getElementById('fromDate').value = start;
+    document.getElementById('toDate').value = end;
+
+    applySharedRange();
+  }
+
+  async function initBess() {
+    const res = await fetch('/api/interval-files');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+
+    const files = await res.json();
+    const sel = document.getElementById('bessFile');
+
+    files.forEach(f => {
+      const o = document.createElement('option');
+      o.value = f;
+      o.textContent = f;
+      sel.appendChild(o);
+    });
+
+    sel.addEventListener('change', () => {
+      document.getElementById('runBtn').disabled = !sel.value;
+    });
+  }
+
+  function pointFiltered() {
+    const from = dateToMs(document.getElementById('fromDate').value);
+    const to = dateToMs(document.getElementById('toDate').value) + 86400_000;
+    return allData.filter(d => {
+      const t = tsToMs(d.ts);
+      return t >= from && t < to;
+    });
+  }
+
+  function bessFiltered() {
+    const from = dateToMs(document.getElementById('fromDate').value);
+    const to = dateToMs(document.getElementById('toDate').value) + 86400_000;
+    return bessAllData.filter(d => {
+      const t = tsToMs(d.ts);
+      return t >= from && t < to;
+    });
+  }
+
+  function dailyFiltered() {
+    const from = document.getElementById('fromDate').value;
+    const to = document.getElementById('toDate').value;
+    return bessAllDaily.filter(d => d.date >= from && d.date <= to);
+  }
+
+  function buildPointChart(data) {
+    const ctx = document.getElementById('myChart').getContext('2d');
+    if (chart) chart.destroy();
+
+    const span = data.length ? (tsToMs(data.at(-1).ts) - tsToMs(data[0].ts)) / 86400_000 : 30;
+    const opts = commonChartOpts('Price (€/MWh)', span);
+
+    opts.plugins.zoom = {
+      zoom: {
+        wheel: { enabled:true, speed:.08 },
+        pinch: { enabled:true },
+        mode:'x',
+      },
+      pan: {
+        enabled:true,
+        mode:'x',
+      }
+    };
+
+    opts.plugins.tooltip.callbacks = {
+      title: items => items[0]?.label?.slice(0,16) ?? '',
+      label: item => `  ${item.dataset.label.padEnd(9)}: ${item.parsed.y.toFixed(2)} €/MWh`
+    };
+
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: SERIES.map(s => ({
+          label: s.label,
+          data: data.map(d => ({ x: tsToDisplayMs(d.ts), y: d[s.field] })),
+          borderColor: s.color,
+          borderWidth: s.key === 'actual' ? 1.7 : 1.4,
+          borderDash: s.dash,
+          backgroundColor: 'transparent',
+          pointRadius: 0,
+          tension: 0,
+          hidden: !document.getElementById('cb-' + s.key).checked
+        }))
+      },
+      options: opts
+    });
+  }
+
+  function buildBessChart(data) {
+    const ctx = document.getElementById('bessChart').getContext('2d');
+    if (bessChart) bessChart.destroy();
+    if (!data.length) return;
+
+    const enrich = data.map(d => ({
+      ...d,
+      netPred: d.dischargePred - d.chargePred,
+      netTrue: d.dischargeTrue - d.chargeTrue,
+      socPred: d.socPred,
+      socTrue: d.socTrue,
+    }));
+
+    const span = (tsToMs(data.at(-1).ts) - tsToMs(data[0].ts)) / 86400_000;
+    const opts = commonChartOpts('Power (+dis / -chg) [MW]', span);
+
+    opts.scales.y2 = {
+      position: 'right',
+      grid:   { drawOnChartArea: false },
+      border: { color: '#38385a' },
+      ticks:  { color: '#6870a0', font: { family: 'monospace', size: 12 } },
+      title:  { display: true, text: 'SOC (MWh)', color: '#505070', font: { size: 12 } },
+    };
+
+    opts.plugins.tooltip.callbacks = {
+      title: items => items[0]?.label?.slice(0,16) ?? '',
+      label: item => {
+        const unit = item.dataset.yAxisID === 'y2' ? 'MWh' : 'MW';
+        return `  ${item.dataset.label.padEnd(10)}: ${item.parsed.y.toFixed(4)} ${unit}`;
+      }
+    };
+
+    bessChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: BESS_SERIES.map(s => ({
+          label: s.label,
+          data: enrich.map(d => ({ x: tsToDisplayMs(d.ts), y: d[s.key] })),
+          borderColor: s.color,
+          borderWidth: s.w,
+          borderDash: s.dash,
+          backgroundColor: 'transparent',
+          pointRadius: 0,
+          tension: 0,
+          yAxisID: s.axis,
+          hidden: !document.getElementById(s.cb).checked
+        }))
+      },
+      options: opts
+    });
+  }
+
+  function buildProfitChart(daily) {
+    const ctx = document.getElementById('profitChart').getContext('2d');
+    if (profitChart) profitChart.destroy();
+    if (!daily.length) return;
+
+    // Compute cumulative sums from the start of the filtered range
+    let predCumulative = 0, trueCumulative = 0;
+    const cumulative = daily.map(d => {
+      predCumulative += d.predProfit;
+      trueCumulative += d.trueProfit;
+      return { x: Date.parse(d.date), cumulativePred: predCumulative, cumulativeTrue: trueCumulative };
+    });
+
+    const span = (Date.parse(daily.at(-1).date) - Date.parse(daily[0].date)) / 86400_000;
+    const opts = commonChartOpts('Cumulative Profit (€)', span);
+    opts.scales.x.time.unit = 'day';
+
+    opts.plugins.tooltip.callbacks = {
+      title: items => items[0]?.label?.slice(0,10) ?? '',
+      label: item => `  ${item.dataset.label.padEnd(12)}: ${item.parsed.y.toFixed(2)} €`
+    };
+
+    profitChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: [
+          {
+            label: 'Pred (sched)',
+            data: cumulative.map(d => ({ x: d.x, y: d.cumulativePred })),
+            borderColor: 'rgba(166,227,161,.90)',
+            borderWidth: 1.7,
+            backgroundColor: 'rgba(166,227,161,.07)',
+            fill: false,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            tension: 0.2,
+          },
+          {
+            label: 'True (optimal)',
+            data: cumulative.map(d => ({ x: d.x, y: d.cumulativeTrue })),
+            borderColor: 'rgba(137,180,250,.90)',
+            borderWidth: 1.7,
+            backgroundColor: 'rgba(137,180,250,.07)',
+            fill: false,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            tension: 0.2,
+          },
+          {
+            label: 'Lost profit',
+            data: cumulative.map(d => ({ x: d.x, y: d.cumulativePred })),
+            borderColor: 'transparent',
+            backgroundColor: 'rgba(243,139,168,.10)',
+            fill: { target: 1, above: 'rgba(243,139,168,.10)', below: 'rgba(243,139,168,.10)' },
+            pointRadius: 0,
+            tension: 0.2,
+          },
+        ]
+      },
+      options: opts
+    });
+  }
+
+  function onToggle(key, checked) {
+    document.getElementById('tgl-' + key).classList.toggle('off', !checked);
+    if (!chart) return;
+    chart.data.datasets[SERIES.findIndex(s => s.key === key)].hidden = !checked;
+    chart.update('none');
+  }
+
+  function onBTgl(key, checked) {
+    document.getElementById('btgl-' + key).classList.toggle('off', !checked);
+    if (!bessChart) return;
+    bessChart.data.datasets[BESS_SERIES.findIndex(s => s.key === key)].hidden = !checked;
+    bessChart.update('none');
+  }
+
+  function calcPtMetrics(data, field) {
+    if (!data.length) return null;
+    const mae = data.reduce((s,d) => s + Math.abs(d.yTrue - d[field]), 0) / data.length;
+    const rmse = Math.sqrt(data.reduce((s,d) => s + (d.yTrue - d[field])**2, 0) / data.length);
+    // wwMAPE: sum(|error|) / sum(|actual|) — handles negative and near-zero prices correctly
+    const sumAbsErr = data.reduce((s,d) => s + Math.abs(d.yTrue - d[field]), 0);
+    const sumAbsTrue = data.reduce((s,d) => s + Math.abs(d.yTrue), 0);
+    const mape = sumAbsTrue > 0 ? sumAbsErr / sumAbsTrue * 100 : 0;
+    return { mae, rmse, mape };
+  }
+
+  function updatePtMetrics(data) {
+    for (const { id, field } of PT_METRICS) {
+      const m = calcPtMetrics(data, field);
+      document.getElementById(`${id}-mae`).textContent = m ? m.mae.toFixed(4) : '-';
+      document.getElementById(`${id}-rmse`).textContent = m ? m.rmse.toFixed(4) : '-';
+      document.getElementById(`${id}-mape`).textContent = m ? m.mape.toFixed(2) + ' %' : '-';
+    }
+    document.getElementById('pointRange').textContent = data.length
+            ? `${data.length.toLocaleString()} samples | ${data[0].ts.slice(0,10)} to ${data.at(-1).ts.slice(0,10)}`
+            : '';
+  }
+
+  function fmtEur(v) { return v != null ? v.toFixed(2) + ' €' : '-'; }
+  function fmtPct(v) { return v != null ? (v * 100).toFixed(1) + ' %' : '-'; }
+
+  function updateBessMetrics(s) {
+    document.getElementById('bm-pred').textContent = fmtEur(s.predProfit);
+    document.getElementById('bm-true').textContent = fmtEur(s.trueProfit);
+    document.getElementById('bm-lost').textContent = fmtEur(s.lostProfit);
+    document.getElementById('bm-avg').textContent  = fmtEur(s.lostProfitAvg);
+    document.getElementById('bm-chm').textContent  = fmtPct(s.chargeMatch);
+    document.getElementById('bm-dm').textContent   = fmtPct(s.dischargeMatch);
+    document.getElementById('bm-days').textContent = s.daysEvaluated ?? '-';
+  }
+
+  function summariseFilteredBess(schedule, daily) {
+    if (!daily.length) {
+      return {
+        predProfit: 0,
+        trueProfit: 0,
+        lostProfit: 0,
+        lostProfitAvg: 0,
+        chargeMatch: 0,
+        dischargeMatch: 0,
+        daysEvaluated: 0
+      };
+    }
+
+    const predProfit = daily.reduce((s, d) => s + d.predProfit, 0);
+    const trueProfit = daily.reduce((s, d) => s + d.trueProfit, 0);
+    const lostProfit = trueProfit - predProfit;
+    const daysEvaluated = daily.length;
+
+    const chargePred = schedule.reduce((s, d) => s + Math.abs(d.chargePred ?? 0), 0);
+    const chargeTrue = schedule.reduce((s, d) => s + Math.abs(d.chargeTrue ?? 0), 0);
+    const dischargePred = schedule.reduce((s, d) => s + Math.abs(d.dischargePred ?? 0), 0);
+    const dischargeTrue = schedule.reduce((s, d) => s + Math.abs(d.dischargeTrue ?? 0), 0);
+
+    const chargeOverlap = schedule.reduce((s, d) => s + Math.min(Math.abs(d.chargePred ?? 0), Math.abs(d.chargeTrue ?? 0)), 0);
+    const dischargeOverlap = schedule.reduce((s, d) => s + Math.min(Math.abs(d.dischargePred ?? 0), Math.abs(d.dischargeTrue ?? 0)), 0);
+
+    return {
+      predProfit,
+      trueProfit,
+      lostProfit,
+      lostProfitAvg: daysEvaluated ? lostProfit / daysEvaluated : 0,
+      chargeMatch: chargeTrue > 0 ? chargeOverlap / chargeTrue : 0,
+      dischargeMatch: dischargeTrue > 0 ? dischargeOverlap / dischargeTrue : 0,
+      daysEvaluated
+    };
+  }
+
+  function applySharedRange() {
+    const fromEl = document.getElementById('fromDate');
+    const toEl = document.getElementById('toDate');
+
+    if (fromEl.value > toEl.value) {
+      toEl.value = fromEl.value;
+    }
+
+    const p = pointFiltered();
+    buildPointChart(p);
+    updatePtMetrics(p);
+
+    if (bessAllData.length) {
+      const sched = bessFiltered();
+      const daily = dailyFiltered();
+      buildBessChart(sched);
+      buildProfitChart(daily);
+      updateBessMetrics(summariseFilteredBess(sched, daily));
+    }
+  }
+
+  function resetRange() {
+    if (!allData.length) return;
+
+    const min = allData[0].ts.slice(0,10);
+    const max = allData.at(-1).ts.slice(0,10);
+    const start = clampDateStr(DEFAULT_START, min, max);
+    const end   = clampDateStr(DEFAULT_END,   min, max);
+
+    document.getElementById('fromDate').value = start;
+    document.getElementById('toDate').value = end;
+    applySharedRange();
+  }
+
+  function shiftRange(days) {
+    if (!allData.length) return;
+
+    const min = allData[0].ts.slice(0,10);
+    const max = allData.at(-1).ts.slice(0,10);
+
+    const fromStr = document.getElementById('fromDate').value;
+    const toStr = document.getElementById('toDate').value;
+
+    const fromMs = dateToMs(fromStr);
+    const toMs = dateToMs(toStr);
+    const spanMs = Math.max(0, toMs - fromMs);
+
+    let nextFrom = fromMs + days * 86400_000;
+    let nextTo = nextFrom + spanMs;
+
+    const minFrom = dateToMs(min);
+    const maxTo = dateToMs(max);
+
+    if (nextTo > maxTo) {
+      nextTo = maxTo;
+      nextFrom = Math.max(minFrom, nextTo - spanMs);
+    }
+    if (nextFrom < minFrom) {
+      nextFrom = minFrom;
+      nextTo = Math.min(maxTo, nextFrom + spanMs);
+    }
+
+    document.getElementById('fromDate').value = msToDate(nextFrom);
+    document.getElementById('toDate').value = msToDate(nextTo);
+    applySharedRange();
+  }
+
+  let pointSyncT = null;
+  function syncRangeFromPointZoom(c) {
+    clearTimeout(pointSyncT);
+    pointSyncT = setTimeout(() => {
+      const vis = allData.filter(d => {
+        const t = tsToMs(d.ts);
+        return t >= c.scales.x.min && t <= c.scales.x.max;
+      });
+      if (!vis.length) return;
+
+      document.getElementById('fromDate').value = vis[0].ts.slice(0,10);
+      document.getElementById('toDate').value = vis.at(-1).ts.slice(0,10);
+      applySharedRange();
+    }, 120);
+  }
+
+  function resetZoom() {
+    if (chart) {
+      chart.resetZoom();
+      syncRangeFromPointZoom(chart);
+    }
+  }
+
+  async function runBessEval() {
+    const file = document.getElementById('bessFile').value;
+    if (!file) return;
+
+    const status = document.getElementById('bessStatus');
+    const stTxt = document.getElementById('bessStatusTxt');
+    const runBtn = document.getElementById('runBtn');
+
+    status.className = 'bess-status loading';
+    stTxt.textContent = 'Running optimisation...';
+    runBtn.disabled = true;
+
+    try {
+      const res = await fetch('/api/bess-eval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file })
+      });
+
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || 'Evaluation failed');
+
+      bessAllData = json.schedule ?? [];
+      bessAllDaily = json.dailyProfits ?? [];
+
+      applySharedRange();
+      status.className = 'bess-status';
+    } catch (e) {
+      status.className = 'bess-status error';
+      stTxt.textContent = 'Error: ' + e.message;
+    } finally {
+      runBtn.disabled = false;
+    }
+  }
+
+  (async () => {
+    try {
+      await Promise.all([initPoint(), initBess()]);
+    } catch (e) {
+      document.getElementById('dataInfo').textContent = 'Error: ' + e.message;
+    }
+  })();
+</script>
+</body>
+</html>
