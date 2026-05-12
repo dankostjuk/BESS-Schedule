@@ -217,6 +217,69 @@
     .strip-sep { width: 1px; height: 22px; background: var(--bd); flex-shrink: 0; }
     .strip-lbl { font-size: 12px; color: #484868; font-family: monospace; margin-right: 2px; }
 
+    .metrics-panel {
+      flex: 0 0 50%;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .charts-row .profit-wrap {
+      flex: 0 0 30%;
+      min-width: 0;
+    }
+    .metrics-panel-title {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--sub);
+      padding: 5px 10px 4px;
+      border-bottom: 1px solid var(--bd);
+    }
+    .metrics-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    .mtbl {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      font-family: monospace;
+    }
+    .mtbl thead th {
+      position: sticky;
+      top: 0;
+      background: var(--sf);
+      color: var(--sub);
+      padding: 5px 10px;
+      text-align: right;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--bd);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .mtbl thead th:first-child { text-align: left; }
+    .mtbl thead th:hover { color: var(--text); }
+    .mtbl thead th.sort-asc::after  { content: ' ↑'; color: var(--blue); }
+    .mtbl thead th.sort-desc::after { content: ' ↓'; color: var(--blue); }
+    .mtbl tbody td {
+      padding: 4px 10px;
+      text-align: right;
+      border-bottom: 1px solid rgba(50,50,78,.35);
+      white-space: nowrap;
+    }
+    .mtbl tbody td:first-child { text-align: left; color: var(--blue); font-weight: 600; }
+    .mtbl tbody tr:hover td { background: var(--sf2); }
+    .mtbl .nan-val { color: #484868; }
+
     .bess-status { display: none; align-items: center; gap: 6px; font-size: 13px; font-family: monospace; }
     .bess-status.loading { display: flex; color: var(--yellow); }
     .bess-status.error { display: flex; color: var(--red); max-width: 420px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -232,7 +295,7 @@
 
 <header>
   <h1>Electricity Price Prediction</h1>
-  <span id="dataInfo">Loading...</span>
+  <span id="dataInfo"></span>
 </header>
 
 <div class="split-view">
@@ -242,24 +305,19 @@
       <div class="ctrl-row">
         <span class="ctrl-lbl">Series</span>
 
-        <label class="toggle" id="tgl-actual" style="color:var(--actual)">
+        <label class="toggle" id="tgl-actual" style="color:var(--green)">
           <input type="checkbox" id="cb-actual" checked onchange="onToggle('actual', this.checked)">
-          <span class="dot" style="background:var(--actual)"></span>Actual
+          <span class="dot" style="background:var(--green)"></span>Actual
         </label>
 
-        <label class="toggle" id="tgl-hgbr" style="color:var(--blue)">
-          <input type="checkbox" id="cb-hgbr" checked onchange="onToggle('hgbr', this.checked)">
-          <span class="dot" style="background:var(--blue)"></span>HGBR
+        <label class="toggle off" id="tgl-pi" style="color:var(--red)">
+          <input type="checkbox" id="cb-pi" onchange="onToggle('pi', this.checked)">
+          <span class="dot" style="background:var(--red)"></span>Pred Interval
         </label>
 
-        <label class="toggle" id="tgl-catboost" style="color:var(--red)">
-          <input type="checkbox" id="cb-catboost" checked onchange="onToggle('catboost', this.checked)">
-          <span class="dot" style="background:var(--red)"></span>CatBoost
-        </label>
-
-        <label class="toggle" id="tgl-xgboost" style="color:var(--green)">
-          <input type="checkbox" id="cb-xgboost" checked onchange="onToggle('xgboost', this.checked)">
-          <span class="dot" style="background:var(--green)"></span>XGBoost
+        <label class="toggle off" id="tgl-ypred" style="color:var(--blue)">
+          <input type="checkbox" id="cb-ypred" onchange="onToggle('ypred', this.checked)">
+          <span class="dot" style="background:var(--blue)"></span>Predicted
         </label>
 
         <div class="vdiv"></div>
@@ -269,62 +327,61 @@
         <span style="color:var(--sub);font-size:11px">to</span>
         <input type="date" id="toDate" onchange="applySharedRange()">
 
+        <button class="btn danger" onclick="shiftRange(-1)">-1 Day</button>
         <button class="btn accent" onclick="shiftRange(1)">+1 Day</button>
         <button class="btn danger" onclick="resetRange()">Reset</button>
         <button class="btn" onclick="resetZoom()">Reset Zoom</button>
       </div>
+      <div class="ctrl-row" id="priceMetricsRow" style="display:none">
+        <span class="ctrl-lbl" id="pm-method">—</span>
+        <div class="vdiv"></div>
+        <div class="m-chip"><span class="mk">MAE</span><span class="mv" id="pm-mae">—</span></div>
+        <div class="m-chip"><span class="mk">RMSE</span><span class="mv" id="pm-rmse">—</span></div>
+        <div class="m-chip"><span class="mk">wMAPE</span><span class="mv" id="pm-wmape">—</span></div>
+        <div class="m-chip"><span class="mk">Coverage</span><span class="mv" id="pm-cov">—</span></div>
+        <div class="m-chip"><span class="mk">Avg Width</span><span class="mv" id="pm-width">—</span></div>
+      </div>
     </div>
 
-    <div class="chart-wrap">
-      <canvas id="myChart"></canvas>
-    </div>
-
-    <div class="metrics-strip">
-      <span class="strip-lbl">Metrics</span>
-
-      <div class="m-method" style="border-color:var(--blue)">
-        <span class="mm-title" style="color:var(--blue)">HGBR</span>
-        <span class="mm-item">MAE</span><span class="mm-val" id="hgbr-mae" style="color:#90c890">-</span>
-        <span class="mm-item" style="margin-left:6px">RMSE</span><span class="mm-val" id="hgbr-rmse" style="color:#90b8d8">-</span>
-        <span class="mm-item" style="margin-left:6px">wMAPE</span><span class="mm-val" id="hgbr-mape" style="color:#d8c890">-</span>
+    <div class="charts-row">
+      <div class="chart-wrap">
+        <canvas id="myChart"></canvas>
       </div>
-
-      <div class="strip-sep"></div>
-
-      <div class="m-method" style="border-color:var(--red)">
-        <span class="mm-title" style="color:var(--red)">CatBoost</span>
-        <span class="mm-item">MAE</span><span class="mm-val" id="catboost-mae" style="color:#90c890">-</span>
-        <span class="mm-item" style="margin-left:6px">RMSE</span><span class="mm-val" id="catboost-rmse" style="color:#90b8d8">-</span>
-        <span class="mm-item" style="margin-left:6px">wMAPE</span><span class="mm-val" id="catboost-mape" style="color:#d8c890">-</span>
+      <div class="chart-vsep"></div>
+      <div class="metrics-panel">
+        <div class="metrics-panel-title">Interval Prediction Metrics</div>
+        <div class="metrics-scroll">
+          <table class="mtbl">
+            <thead>
+              <tr>
+                <th id="mth-name"       onclick="sortMetrics('name')">Method</th>
+                <th id="mth-mae"        onclick="sortMetrics('mae')">MAE</th>
+                <th id="mth-rmse"       onclick="sortMetrics('rmse')">RMSE</th>
+                <th id="mth-wmape"      onclick="sortMetrics('wmape')">wMAPE %</th>
+                <th id="mth-coverage"   onclick="sortMetrics('coverage')">Coverage %</th>
+                <th id="mth-width"      onclick="sortMetrics('width')">Avg Width</th>
+                <th id="mth-predProfit" onclick="sortMetrics('predProfit')">Pred Profit</th>
+                <th id="mth-trueProfit" onclick="sortMetrics('trueProfit')">True Profit</th>
+                <th id="mth-lostProfit" onclick="sortMetrics('lostProfit')">Lost</th>
+              </tr>
+            </thead>
+            <tbody id="metricsBody"></tbody>
+          </table>
+        </div>
       </div>
-
-      <div class="strip-sep"></div>
-
-      <div class="m-method" style="border-color:var(--green)">
-        <span class="mm-title" style="color:var(--green)">XGBoost</span>
-        <span class="mm-item">MAE</span><span class="mm-val" id="xgboost-mae" style="color:#90c890">-</span>
-        <span class="mm-item" style="margin-left:6px">RMSE</span><span class="mm-val" id="xgboost-rmse" style="color:#90b8d8">-</span>
-        <span class="mm-item" style="margin-left:6px">wMAPE</span><span class="mm-val" id="xgboost-mape" style="color:#d8c890">-</span>
-      </div>
-
-      <span class="strip-lbl" id="pointRange" style="margin-left:auto"></span>
     </div>
   </section>
-
-  <div class="h-divider">
-    <span class="panel-title">BESS Schedule</span>
-  </div>
 
   <section class="panel">
     <div class="controls">
       <div class="ctrl-row">
+        <span class="ctrl-lbl">BESS Schedule</span>
+        <div class="vdiv"></div>
         <span class="ctrl-lbl">Interval file</span>
 
         <select id="bessFile">
-          <option value="">select prediction_interval_*.csv</option>
+          <option value="">— select model —</option>
         </select>
-
-        <button class="btn run" id="runBtn" onclick="runBessEval()" disabled>Run</button>
 
         <div class="bess-status" id="bessStatus">
           <div class="spinner"></div>
@@ -335,23 +392,48 @@
 
         <label class="toggle" id="btgl-netPred" style="color:var(--blue)">
           <input type="checkbox" id="bcb-netPred" checked onchange="onBTgl('netPred',this.checked)">
-          <span class="dot" style="background:var(--blue)"></span>Net Pred
+          <span class="dot" style="background:var(--blue)"></span>Sched Pred
         </label>
 
-        <label class="toggle" id="btgl-netTrue" style="color:var(--green)">
-          <input type="checkbox" id="bcb-netTrue" checked onchange="onBTgl('netTrue',this.checked)">
-          <span class="dot" style="background:var(--green)"></span>Net True
+        <label class="toggle off" id="btgl-netTrue" style="color:var(--green)">
+          <input type="checkbox" id="bcb-netTrue" onchange="onBTgl('netTrue',this.checked)">
+          <span class="dot" style="background:var(--green)"></span>Sched True
         </label>
 
-        <label class="toggle" id="btgl-socPred" style="color:var(--mauve)">
-          <input type="checkbox" id="bcb-socPred" checked onchange="onBTgl('socPred',this.checked)">
-          <span class="dot" style="background:var(--mauve)"></span>SOC Pred
+        <label class="toggle off" id="btgl-socPred" style="color:var(--blue)">
+          <input type="checkbox" id="bcb-socPred" onchange="onBTgl('socPred',this.checked)">
+          <span class="dot" style="background:var(--blue)"></span>Charge State Pred
         </label>
 
-        <label class="toggle" id="btgl-socTrue" style="color:var(--yellow)">
-          <input type="checkbox" id="bcb-socTrue" checked onchange="onBTgl('socTrue',this.checked)">
-          <span class="dot" style="background:var(--yellow)"></span>SOC True
+        <label class="toggle off" id="btgl-socTrue" style="color:var(--green)">
+          <input type="checkbox" id="bcb-socTrue" onchange="onBTgl('socTrue',this.checked)">
+          <span class="dot" style="background:var(--green)"></span>Charge State True
         </label>
+
+        <div class="vdiv"></div>
+
+        <label class="toggle off" id="btgl-netPeak" style="color:#fab387">
+          <input type="checkbox" id="bcb-netPeak" onchange="onBTgl('netPeak',this.checked)">
+          <span class="dot" style="background:#fab387"></span>Peak Hour Sched
+        </label>
+
+        <label class="toggle off" id="btgl-netYday" style="color:var(--mauve)">
+          <input type="checkbox" id="bcb-netYday" onchange="onBTgl('netYday',this.checked)">
+          <span class="dot" style="background:var(--mauve)"></span>Yesterday Sched
+        </label>
+
+        <label class="toggle off" id="btgl-socPeak" style="color:#fab387">
+          <input type="checkbox" id="bcb-socPeak" onchange="onBTgl('socPeak',this.checked)">
+          <span class="dot" style="background:#fab387"></span>SOC Peak
+        </label>
+
+        <label class="toggle off" id="btgl-socYday" style="color:var(--mauve)">
+          <input type="checkbox" id="bcb-socYday" onchange="onBTgl('socYday',this.checked)">
+          <span class="dot" style="background:var(--mauve)"></span>SOC Yesterday
+        </label>
+
+        <div class="vdiv"></div>
+
       </div>
     </div>
 
@@ -360,42 +442,25 @@
         <canvas id="bessChart"></canvas>
       </div>
       <div class="chart-vsep"></div>
-      <div class="chart-wrap">
+      <div class="chart-wrap profit-wrap">
         <canvas id="profitChart"></canvas>
       </div>
     </div>
 
     <div class="metrics-strip">
       <span class="strip-lbl">Profit</span>
-
-      <div class="m-chip">
-        <span class="mk">Pred</span><span class="mv" id="bm-pred" style="color:var(--green)">-</span>
-      </div>
-      <div class="m-chip">
-        <span class="mk">True</span><span class="mv" id="bm-true" style="color:var(--blue)">-</span>
-      </div>
-      <div class="m-chip">
-        <span class="mk">Lost</span><span class="mv" id="bm-lost" style="color:var(--red)">-</span>
-      </div>
-      <div class="m-chip">
-        <span class="mk">Avg/day</span><span class="mv" id="bm-avg" style="color:var(--red)">-</span>
-      </div>
-
+      <div class="m-chip"><span class="mk">True</span><span class="mv" id="bm-true" style="color:var(--green)">-</span></div>
+      <div class="m-chip"><span class="mk">Pred</span><span class="mv" id="bm-pred" style="color:var(--blue)">-</span></div>
+      <div class="m-chip"><span class="mk">Peak</span><span class="mv" id="bm-peak" style="color:#fab387">-</span></div>
+      <div class="m-chip"><span class="mk">Yday</span><span class="mv" id="bm-yday" style="color:var(--mauve)">-</span></div>
+      <div class="m-chip"><span class="mk">Lost</span><span class="mv" id="bm-lost" style="color:var(--red)">-</span></div>
+      <div class="m-chip"><span class="mk">Avg/day</span><span class="mv" id="bm-avg" style="color:var(--red)">-</span></div>
       <div class="strip-sep"></div>
-
       <span class="strip-lbl">Schedule match</span>
-      <div class="m-chip">
-        <span class="mk">Charge</span><span class="mv" id="bm-chm" style="color:var(--mauve)">-</span>
-      </div>
-      <div class="m-chip">
-        <span class="mk">Discharge</span><span class="mv" id="bm-dm" style="color:var(--mauve)">-</span>
-      </div>
-
+      <div class="m-chip"><span class="mk">Charge</span><span class="mv" id="bm-chm" style="color:var(--mauve)">-</span></div>
+      <div class="m-chip"><span class="mk">Discharge</span><span class="mv" id="bm-dm" style="color:var(--mauve)">-</span></div>
       <div class="strip-sep"></div>
-
-      <div class="m-chip">
-        <span class="mk">Days</span><span class="mv" id="bm-days" style="color:var(--text)">-</span>
-      </div>
+      <div class="m-chip"><span class="mk">Days</span><span class="mv" id="bm-days" style="color:var(--text)">-</span></div>
     </div>
   </section>
 
@@ -404,25 +469,69 @@
 <script>
   'use strict';
 
+  const DATE_MIN      = '2025-07-01';
+  const DATE_MAX      = '2025-08-31';
   const DEFAULT_START = '2025-07-01';
-  const DEFAULT_END   = '2025-07-01';
+  const DEFAULT_END   = '2025-07-08';
 
-  function tsToMs(ts) { return Date.parse(ts.replace(' ', 'T') + ':00Z'); }
-  function dateToMs(d) { return Date.parse(d + 'T00:00:00Z'); }
-  function msToDate(ms) { return new Date(ms).toISOString().slice(0, 10); }
+  function tsToMs(ts) { return Date.parse(ts.replace(' ', 'T')); }
+  function dateToMs(d) { return Date.parse(d + 'T00:00:00+01:00'); }
+  function msToDate(ms) { return new Date(ms + 2 * 3600_000).toISOString().slice(0, 10); }
+  function tsToDisplayMs(ts) { return tsToMs(ts); }
 
-  // Shift UTC ms so Chart.js (which renders in browser local time) displays UTC values.
-  // In Prague UTC+2: getTimezoneOffset() = -120 → subtract 2 h → label reads UTC.
-  function tsToDisplayMs(ts) {
-    const ms = tsToMs(ts);
-    return ms + new Date(ms).getTimezoneOffset() * 60000;
-  }
+  const cornerLegendPlugin = {
+    id: 'cornerLegend',
+    afterDraw(chart) {
+      const { ctx, chartArea } = chart;
+      if (!chartArea) return;
+      const { top, right } = chartArea;
 
-  function clampDateStr(value, min, max) {
-    if (value < min) return min;
-    if (value > max) return max;
-    return value;
-  }
+      const visible = chart.data.datasets.filter((ds, i) => {
+        if (ds.skipLegend) return false;
+        return !chart.getDatasetMeta(i).hidden;
+      });
+      if (!visible.length) return;
+
+      const lineH = 18, padX = 10, padY = 8, swatchW = 20, gap = 6, fontSize = 11;
+      ctx.save();
+      ctx.font = `500 ${fontSize}px monospace`;
+
+      const maxLabelW = Math.max(...visible.map(ds => ctx.measureText(ds.label).width));
+      const boxW = padX * 2 + swatchW + gap + maxLabelW;
+      const boxH = padY * 2 + visible.length * lineH;
+      const bx = right - boxW - 10;
+      const by = top + 10;
+
+      ctx.fillStyle = 'rgba(16,16,28,.82)';
+      ctx.strokeStyle = 'rgba(50,50,78,.70)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(bx, by, boxW, boxH, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      visible.forEach((ds, i) => {
+        const y = by + padY + i * lineH + lineH / 2;
+        const sx = bx + padX;
+
+        ctx.save();
+        ctx.strokeStyle = Array.isArray(ds.borderColor) ? ds.borderColor[0] : (ds.borderColor ?? '#888');
+        ctx.lineWidth = Math.max(1.5, ds.borderWidth ?? 1.5);
+        if (ds.borderDash?.length) ctx.setLineDash(ds.borderDash);
+        ctx.beginPath();
+        ctx.moveTo(sx, y);
+        ctx.lineTo(sx + swatchW, y);
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = '#8890aa';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ds.label, sx + swatchW + gap, y);
+      });
+
+      ctx.restore();
+    }
+  };
 
   function commonChartOpts(yTitle, spanDays) {
     return {
@@ -465,100 +574,121 @@
     };
   }
 
-  let allData = [];
-  let chart = null;
-
-  const SERIES = [
-    { key:'actual',   field:'yTrue',          label:'Actual',   color:'rgba(226,226,248,.90)', dash:[] },
-    { key:'hgbr',     field:'yPredHgbr',      label:'HGBR',     color:'rgba(137,180,250,.90)', dash:[8,4] },
-    { key:'catboost', field:'yPredCatboost',  label:'CatBoost', color:'rgba(243,139,168,.90)', dash:[8,4] },
-    { key:'xgboost',  field:'yPredXgboost',   label:'XGBoost',  color:'rgba(166,227,161,.90)', dash:[8,4] },
-  ];
-  const PT_METRICS = [
-    { id:'hgbr',     field:'yPredHgbr' },
-    { id:'catboost', field:'yPredCatboost' },
-    { id:'xgboost',  field:'yPredXgboost' },
-  ];
-
-  let bessAllData = [];
-  let bessAllDaily = [];
-  let bessChart = null;
+  let truePricesAll  = [];   // always-loaded true prices from schedule_true.csv
+  let schedulePoints = [];   // full per-interval data (loaded on model select)
+  let scheduleDaily  = [];   // daily profits
+  let hasInterval    = false;
+  let chart      = null;
+  let bessChart  = null;
   let profitChart = null;
 
   const BESS_SERIES = [
-    { key:'netPred', label:'Net Pred', color:'rgba(137,180,250,.90)', dash:[],    w:1.7, cb:'bcb-netPred', axis:'y'  },
-    { key:'netTrue', label:'Net True', color:'rgba(166,227,161,.90)', dash:[],    w:1.7, cb:'bcb-netTrue', axis:'y'  },
-    { key:'socPred', label:'SOC Pred', color:'rgba(203,166,247,.85)', dash:[4,2], w:1.4, cb:'bcb-socPred', axis:'y2' },
-    { key:'socTrue', label:'SOC True', color:'rgba(249,226,175,.85)', dash:[4,2], w:1.4, cb:'bcb-socTrue', axis:'y2' },
+    { key:'netPred', label:'Sched Pred',       color:'rgba(137,180,250,.90)', dash:[],    w:1.7, cb:'bcb-netPred', axis:'y'  },
+    { key:'netTrue', label:'Sched True',       color:'rgba(166,227,161,.90)', dash:[],    w:1.7, cb:'bcb-netTrue', axis:'y'  },
+    { key:'netPeak', label:'Peak Hour Sched',  color:'rgba(250,179,135,.90)', dash:[3,2], w:1.4, cb:'bcb-netPeak', axis:'y'  },
+    { key:'netYday', label:'Yesterday Sched',  color:'rgba(203,166,247,.90)', dash:[3,2], w:1.4, cb:'bcb-netYday', axis:'y'  },
+    { key:'socPred', label:'Charge State Pred', color:'rgba(137,180,250,.85)', dash:[4,2], w:1.4, cb:'bcb-socPred', axis:'y2' },
+    { key:'socTrue', label:'Charge State True', color:'rgba(166,227,161,.85)', dash:[4,2], w:1.4, cb:'bcb-socTrue', axis:'y2' },
+    { key:'socPeak', label:'SOC Peak',          color:'rgba(250,179,135,.85)', dash:[4,2], w:1.2, cb:'bcb-socPeak', axis:'y2' },
+    { key:'socYday', label:'SOC Yesterday',     color:'rgba(203,166,247,.85)', dash:[4,2], w:1.2, cb:'bcb-socYday', axis:'y2' },
   ];
 
-  async function initPoint() {
-    const res = await fetch('/api/data');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    allData = await res.json();
-    if (!allData.length) throw new Error('No point data returned');
-
-    const min = allData[0].ts.slice(0,10);
-    const max = allData.at(-1).ts.slice(0,10);
-    const start = clampDateStr(DEFAULT_START, min, max);
-    const end   = clampDateStr(DEFAULT_END,   min, max);
-
-    document.getElementById('dataInfo').textContent =
-            `${allData.length.toLocaleString()} samples | ${min} to ${max}`;
-
-    for (const id of ['fromDate','toDate']) {
+  async function initBess() {
+    // Date pickers — fixed range
+    for (const id of ['fromDate', 'toDate']) {
       const el = document.getElementById(id);
-      el.min = min;
-      el.max = max;
+      el.min = DATE_MIN;
+      el.max = DATE_MAX;
+    }
+    document.getElementById('fromDate').value = DEFAULT_START;
+    document.getElementById('toDate').value   = DEFAULT_END;
+
+    // Load true prices for initial chart display (before model selection)
+    try {
+      const tp = await fetch('/api/true-prices');
+      if (tp.ok) truePricesAll = await tp.json();
+    } catch { /* non-fatal */ }
+
+    // Populate model dropdown
+    const res = await fetch('/api/files');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const files = await res.json();
+    const sel = document.getElementById('bessFile');
+    files.forEach(f => {
+      const o = document.createElement('option');
+      o.value = f.file;
+      o.textContent = f.name;
+      sel.appendChild(o);
+    });
+
+    const defaultFile = files.find(f => f.file === 'robust_Robust-FourCatBoost.csv');
+    if (defaultFile) {
+      sel.value = defaultFile.file;
+      await loadScheduleData(defaultFile.file);
     }
 
-    document.getElementById('fromDate').value = start;
-    document.getElementById('toDate').value = end;
+    sel.addEventListener('change', async () => {
+      if (!sel.value) {
+        schedulePoints = []; scheduleDaily = []; hasInterval = false;
+        document.getElementById('cb-pi').checked    = false;
+        document.getElementById('tgl-pi').classList.add('off');
+        document.getElementById('cb-ypred').checked = false;
+        document.getElementById('tgl-ypred').classList.add('off');
+        applySharedRange();
+        return;
+      }
+      await loadScheduleData(sel.value);
+    });
 
     applySharedRange();
   }
 
-  async function initBess() {
-    const res = await fetch('/api/interval-files');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+  async function loadScheduleData(filename) {
+    const status = document.getElementById('bessStatus');
+    const stTxt  = document.getElementById('bessStatusTxt');
+    status.className = 'bess-status loading';
+    stTxt.textContent = 'Loading…';
 
-    const files = await res.json();
-    const sel = document.getElementById('bessFile');
+    try {
+      const res = await fetch('/api/schedule-data?file=' + encodeURIComponent(filename));
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || 'Load failed');
 
-    files.forEach(f => {
-      const o = document.createElement('option');
-      o.value = f;
-      o.textContent = f;
-      sel.appendChild(o);
-    });
+      schedulePoints = json.points      ?? [];
+      scheduleDaily  = json.dailyProfits ?? [];
+      hasInterval    = json.hasInterval  ?? false;
 
-    sel.addEventListener('change', () => {
-      document.getElementById('runBtn').disabled = !sel.value;
-    });
+      // auto-show/hide PI and y_pred toggles
+      const hasPi = hasInterval && schedulePoints.some(p => p.piLo != null);
+      document.getElementById('cb-pi').checked    = hasPi;
+      document.getElementById('tgl-pi').classList.toggle('off', !hasPi);
+      document.getElementById('cb-ypred').checked = true;
+      document.getElementById('tgl-ypred').classList.remove('off');
+
+      applySharedRange();
+      status.className = 'bess-status';
+    } catch (e) {
+      status.className = 'bess-status error';
+      stTxt.textContent = 'Error: ' + e.message;
+    }
   }
 
-  function pointFiltered() {
+  function pointsFiltered() {
     const from = dateToMs(document.getElementById('fromDate').value);
-    const to = dateToMs(document.getElementById('toDate').value) + 86400_000;
-    return allData.filter(d => {
-      const t = tsToMs(d.ts);
-      return t >= from && t < to;
-    });
+    const to   = dateToMs(document.getElementById('toDate').value) + 86400_000;
+    return schedulePoints.filter(d => { const t = tsToMs(d.ts); return t >= from && t < to; });
   }
 
-  function bessFiltered() {
+  function truePricesFiltered() {
     const from = dateToMs(document.getElementById('fromDate').value);
-    const to = dateToMs(document.getElementById('toDate').value) + 86400_000;
-    return bessAllData.filter(d => {
-      const t = tsToMs(d.ts);
-      return t >= from && t < to;
-    });
+    const to   = dateToMs(document.getElementById('toDate').value) + 86400_000;
+    return truePricesAll.filter(d => { const t = tsToMs(d.ts); return t >= from && t < to; });
   }
 
   function dailyFiltered() {
     const from = document.getElementById('fromDate').value;
-    const to = document.getElementById('toDate').value;
-    return bessAllDaily.filter(d => d.date >= from && d.date <= to);
+    const to   = document.getElementById('toDate').value;
+    return scheduleDaily.filter(d => d.date >= from && d.date <= to);
   }
 
   function buildPointChart(data) {
@@ -569,91 +699,303 @@
     const opts = commonChartOpts('Price (€/MWh)', span);
 
     opts.plugins.zoom = {
-      zoom: {
-        wheel: { enabled:true, speed:.08 },
-        pinch: { enabled:true },
-        mode:'x',
+      zoom: { wheel: { enabled:true, speed:.08 }, pinch: { enabled:true }, mode:'x' },
+      pan:  { enabled:true, mode:'x' }
+    };
+    opts.plugins.tooltip.callbacks = {
+      title: items => {
+        if (!items.length) return '';
+        const d = new Date(items[0].parsed.x);
+        return `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
       },
-      pan: {
-        enabled:true,
-        mode:'x',
-      }
+      label: item => `  ${item.dataset.label.padEnd(13)}: ${item.parsed.y.toFixed(2)} €/MWh`
     };
 
-    opts.plugins.tooltip.callbacks = {
-      title: items => items[0]?.label?.slice(0,16) ?? '',
-      label: item => `  ${item.dataset.label.padEnd(9)}: ${item.parsed.y.toFixed(2)} €/MWh`
-    };
+    const piHidden    = !document.getElementById('cb-pi').checked;
+    const ypredHidden = !document.getElementById('cb-ypred').checked;
+
+    const datasets = [];
+
+    // True price (green) — use model data when loaded, else standalone true-price array
+    const trueSrc = data.length ? data.map(d => ({ x: tsToDisplayMs(d.ts), y: d.truePrice }))
+                                : truePricesFiltered().map(d => ({ x: tsToDisplayMs(d.ts), y: d.price }));
+    if (trueSrc.length) {
+      datasets.push({
+        label: 'Actual',
+        data: trueSrc,
+        borderColor: 'rgba(166,227,161,.90)',
+        borderWidth: 1.7,
+        borderDash: [],
+        backgroundColor: 'transparent',
+        pointRadius: 0,
+        tension: 0,
+        hidden: !document.getElementById('cb-actual').checked,
+      });
+    }
+
+    // Predicted price (blue dashed) — only when a model is selected
+    if (data.length) {
+      datasets.push({
+        label: 'Predicted',
+        data: data.map(d => ({ x: tsToDisplayMs(d.ts), y: d.yPred })),
+        borderColor: 'rgba(137,180,250,.90)',
+        borderWidth: 1.4,
+        borderDash: [6, 3],
+        backgroundColor: 'transparent',
+        pointRadius: 0,
+        tension: 0,
+        hidden: ypredHidden,
+      });
+    }
+
+    // Prediction interval band (only for robust/MAPIE models)
+    if (data.length && hasInterval && data[0].piLo != null) {
+      const piLoIdx = datasets.length;
+      datasets.push({
+        label: 'PI Lo',
+        data: data.map(d => ({ x: tsToDisplayMs(d.ts), y: d.piLo })),
+        borderColor: 'rgba(243,139,168,.55)',
+        borderWidth: 1,
+        borderDash: [4, 3],
+        backgroundColor: 'transparent',
+        pointRadius: 0,
+        tension: 0,
+        fill: false,
+        hidden: piHidden,
+        skipLegend: true,
+      });
+      datasets.push({
+        label: 'Pred Interval',
+        data: data.map(d => ({ x: tsToDisplayMs(d.ts), y: d.piHi })),
+        borderColor: 'rgba(243,139,168,.55)',
+        borderWidth: 1,
+        borderDash: [4, 3],
+        backgroundColor: 'rgba(243,139,168,.10)',
+        pointRadius: 0,
+        tension: 0,
+        fill: { target: piLoIdx, above: 'rgba(243,139,168,.10)', below: 'rgba(243,139,168,.10)' },
+        hidden: piHidden,
+      });
+    }
 
     chart = new Chart(ctx, {
       type: 'line',
-      data: {
-        datasets: SERIES.map(s => ({
-          label: s.label,
-          data: data.map(d => ({ x: tsToDisplayMs(d.ts), y: d[s.field] })),
-          borderColor: s.color,
-          borderWidth: s.key === 'actual' ? 1.7 : 1.4,
-          borderDash: s.dash,
-          backgroundColor: 'transparent',
-          pointRadius: 0,
-          tension: 0,
-          hidden: !document.getElementById('cb-' + s.key).checked
-        }))
-      },
-      options: opts
+      data: { datasets },
+      options: opts,
+      plugins: [cornerLegendPlugin],
     });
   }
 
-  function buildBessChart(data) {
+  function buildBessChart(data, spanDays) {
     const ctx = document.getElementById('bessChart').getContext('2d');
     if (bessChart) bessChart.destroy();
     if (!data.length) return;
 
     const enrich = data.map(d => ({
       ...d,
-      netPred: d.dischargePred - d.chargePred,
-      netTrue: d.dischargeTrue - d.chargeTrue,
-      socPred: d.socPred,
+      netPred: d.charge     - d.discharge,
+      netTrue: d.chargeTrue - d.dischargeTrue,
+      netPeak: d.chargePeak - d.dischargePeak,
+      netYday: d.chargeYday - d.dischargeYday,
+      socPred: d.soc,
       socTrue: d.socTrue,
+      socPeak: d.socPeak,
+      socYday: d.socYday,
     }));
 
-    const span = (tsToMs(data.at(-1).ts) - tsToMs(data[0].ts)) / 86400_000;
-    const opts = commonChartOpts('Power (+dis / -chg) [MW]', span);
+    if (spanDays >= 7) {
+      // Avg daily profile mode: group by Prague hour of day, dual-axis (power + SOC)
+      const hourly = Array.from({ length: 24 }, () => ({
+        sumNetPred: 0, sumNetTrue: 0, sumNetPeak: 0, sumNetYday: 0,
+        sumSocPred: 0, sumSocTrue: 0, sumSocPeak: 0, sumSocYday: 0,
+        count: 0,
+      }));
+      enrich.forEach(d => {
+        const h = new Date(tsToMs(d.ts)).getHours();
+        hourly[h].sumNetPred += d.netPred;
+        hourly[h].sumNetTrue += d.netTrue;
+        hourly[h].sumNetPeak += d.netPeak;
+        hourly[h].sumNetYday += d.netYday;
+        hourly[h].sumSocPred += d.socPred;
+        hourly[h].sumSocTrue += d.socTrue;
+        hourly[h].sumSocPeak += d.socPeak;
+        hourly[h].sumSocYday += d.socYday;
+        hourly[h].count++;
+      });
 
-    opts.scales.y2 = {
-      position: 'right',
-      grid:   { drawOnChartArea: false },
-      border: { color: '#38385a' },
-      ticks:  { color: '#6870a0', font: { family: 'monospace', size: 12 } },
-      title:  { display: true, text: 'SOC (MWh)', color: '#505070', font: { size: 12 } },
-    };
+      const labels      = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0') + ':00');
+      const avg = key   => hourly.map(h => h.count ? h['sum' + key] / h.count : 0);
 
-    opts.plugins.tooltip.callbacks = {
-      title: items => items[0]?.label?.slice(0,16) ?? '',
-      label: item => {
-        const unit = item.dataset.yAxisID === 'y2' ? 'MWh' : 'MW';
-        return `  ${item.dataset.label.padEnd(10)}: ${item.parsed.y.toFixed(4)} ${unit}`;
-      }
-    };
+      const cb = id => document.getElementById(id).checked;
 
-    bessChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        datasets: BESS_SERIES.map(s => ({
-          label: s.label,
-          data: enrich.map(d => ({ x: tsToDisplayMs(d.ts), y: d[s.key] })),
-          borderColor: s.color,
-          borderWidth: s.w,
-          borderDash: s.dash,
-          backgroundColor: 'transparent',
-          pointRadius: 0,
-          tension: 0,
-          yAxisID: s.axis,
-          hidden: !document.getElementById(s.cb).checked
-        }))
-      },
-      options: opts
-    });
+      bessChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Sched Pred',
+              data: avg('NetPred'),
+              borderColor: 'rgba(137,180,250,.90)',
+              backgroundColor: 'rgba(137,180,250,.10)',
+              borderWidth: 2, fill: true, pointRadius: 3, pointHoverRadius: 5, tension: 0.4,
+              yAxisID: 'y',
+              hidden: !cb('bcb-netPred'),
+            },
+            {
+              label: 'Sched True',
+              data: avg('NetTrue'),
+              borderColor: 'rgba(166,227,161,.90)',
+              backgroundColor: 'rgba(166,227,161,.10)',
+              borderWidth: 2, fill: true, pointRadius: 3, pointHoverRadius: 5, tension: 0.4,
+              yAxisID: 'y',
+              hidden: !cb('bcb-netTrue'),
+            },
+            {
+              label: 'Peak Hour Sched',
+              data: avg('NetPeak'),
+              borderColor: 'rgba(250,179,135,.90)',
+              backgroundColor: 'rgba(250,179,135,.08)',
+              borderWidth: 1.5, borderDash: [3, 2], fill: true, pointRadius: 2, pointHoverRadius: 4, tension: 0.4,
+              yAxisID: 'y',
+              hidden: !cb('bcb-netPeak'),
+            },
+            {
+              label: 'Yesterday Sched',
+              data: avg('NetYday'),
+              borderColor: 'rgba(203,166,247,.90)',
+              backgroundColor: 'rgba(203,166,247,.08)',
+              borderWidth: 1.5, borderDash: [3, 2], fill: true, pointRadius: 2, pointHoverRadius: 4, tension: 0.4,
+              yAxisID: 'y',
+              hidden: !cb('bcb-netYday'),
+            },
+            {
+              label: 'Charge State Pred',
+              data: avg('SocPred'),
+              borderColor: 'rgba(137,180,250,.85)',
+              backgroundColor: 'transparent',
+              borderWidth: 1.4, borderDash: [4, 2], fill: false, pointRadius: 2, pointHoverRadius: 4, tension: 0.4,
+              yAxisID: 'y2',
+              hidden: !cb('bcb-socPred'),
+            },
+            {
+              label: 'Charge State True',
+              data: avg('SocTrue'),
+              borderColor: 'rgba(166,227,161,.85)',
+              backgroundColor: 'transparent',
+              borderWidth: 1.4, borderDash: [4, 2], fill: false, pointRadius: 2, pointHoverRadius: 4, tension: 0.4,
+              yAxisID: 'y2',
+              hidden: !cb('bcb-socTrue'),
+            },
+            {
+              label: 'SOC Peak',
+              data: avg('SocPeak'),
+              borderColor: 'rgba(250,179,135,.85)',
+              backgroundColor: 'transparent',
+              borderWidth: 1.2, borderDash: [4, 2], fill: false, pointRadius: 2, pointHoverRadius: 4, tension: 0.4,
+              yAxisID: 'y2',
+              hidden: !cb('bcb-socPeak'),
+            },
+            {
+              label: 'SOC Yesterday',
+              data: avg('SocYday'),
+              borderColor: 'rgba(203,166,247,.85)',
+              backgroundColor: 'transparent',
+              borderWidth: 1.2, borderDash: [4, 2], fill: false, pointRadius: 2, pointHoverRadius: 4, tension: 0.4,
+              yAxisID: 'y2',
+              hidden: !cb('bcb-socYday'),
+            },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 150 },
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: {
+              grid:   { color: 'rgba(80,84,128,.25)' },
+              border: { color: '#38385a' },
+              ticks:  { color: '#6870a0', font: { family: 'monospace', size: 12 } },
+              title:  { display: true, text: 'Hour of Day', color: '#505070', font: { size: 12 } }
+            },
+            y: {
+              grid:   { color: 'rgba(80,84,128,.25)' },
+              border: { color: '#38385a' },
+              ticks:  { color: '#6870a0', font: { family: 'monospace', size: 12 } },
+              title:  { display: true, text: 'Avg Net Power (+chg / -dis) [MW]', color: '#505070', font: { size: 12 } }
+            },
+            y2: {
+              position: 'right',
+              grid:   { drawOnChartArea: false },
+              border: { color: '#38385a' },
+              ticks:  { color: '#6870a0', font: { family: 'monospace', size: 12 } },
+              title:  { display: true, text: 'Avg SOC (MWh)', color: '#505070', font: { size: 12 } }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: 'rgba(16,16,28,.96)',
+              titleColor: '#cdd6f4',
+              bodyColor: '#8890b8',
+              borderColor: '#38385a',
+              borderWidth: 1,
+              padding: 9,
+              titleFont: { family: 'monospace', size: 13 },
+              bodyFont:  { family: 'monospace', size: 13 },
+              callbacks: {
+                label: item => {
+                  const unit = item.dataset.yAxisID === 'y2' ? 'MWh' : 'MW';
+                  return `  ${item.dataset.label.padEnd(12)}: ${item.parsed.y.toFixed(4)} ${unit}`;
+                }
+              }
+            }
+          }
+        },
+        plugins: [cornerLegendPlugin],
+      });
+    } else {
+      // Timeline mode: per-hour schedule over the selected range
+      const span = (tsToMs(data.at(-1).ts) - tsToMs(data[0].ts)) / 86400_000;
+      const opts = commonChartOpts('Power (+chg / -dis) [MW]', span);
+
+      opts.scales.y2 = {
+        position: 'right',
+        grid:   { drawOnChartArea: false },
+        border: { color: '#38385a' },
+        ticks:  { color: '#6870a0', font: { family: 'monospace', size: 12 } },
+        title:  { display: true, text: 'SOC (MWh)', color: '#505070', font: { size: 12 } },
+      };
+
+      opts.plugins.tooltip.callbacks = {
+        title: items => { if (!items.length) return ''; const d = new Date(items[0].parsed.x); return `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; },
+        label: item => {
+          const unit = item.dataset.yAxisID === 'y2' ? 'MWh' : 'MW';
+          return `  ${item.dataset.label.padEnd(10)}: ${item.parsed.y.toFixed(4)} ${unit}`;
+        }
+      };
+
+      bessChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: BESS_SERIES.map(s => ({
+            label: s.label,
+            data: enrich.map(d => ({ x: tsToDisplayMs(d.ts), y: d[s.key] })),
+            borderColor: s.color,
+            borderWidth: s.w,
+            borderDash: s.dash,
+            backgroundColor: 'transparent',
+            pointRadius: 0,
+            tension: 0,
+            yAxisID: s.axis,
+            hidden: !document.getElementById(s.cb).checked
+          }))
+        },
+        options: opts,
+        plugins: [cornerLegendPlugin],
+      });
+    }
   }
 
   function buildProfitChart(daily) {
@@ -661,68 +1003,106 @@
     if (profitChart) profitChart.destroy();
     if (!daily.length) return;
 
-    // Compute cumulative sums from the start of the filtered range
-    let predCumulative = 0, trueCumulative = 0;
-    const cumulative = daily.map(d => {
-      predCumulative += d.predProfit;
-      trueCumulative += d.trueProfit;
-      return { x: Date.parse(d.date), cumulativePred: predCumulative, cumulativeTrue: trueCumulative };
-    });
+    const fromStr = document.getElementById('fromDate').value;
+    const toStr   = document.getElementById('toDate').value;
 
-    const span = (Date.parse(daily.at(-1).date) - Date.parse(daily[0].date)) / 86400_000;
-    const opts = commonChartOpts('Cumulative Profit (€)', span);
-    opts.scales.x.time.unit = 'day';
+    const totalTrue = daily.reduce((s, d) => s + d.trueProfit, 0);
+    const totalPred = daily.reduce((s, d) => s + d.predProfit, 0);
+    const totalPeak = daily.reduce((s, d) => s + (d.peakProfit ?? 0), 0);
+    const totalYday = daily.reduce((s, d) => s + (d.ydayProfit ?? 0), 0);
 
-    opts.plugins.tooltip.callbacks = {
-      title: items => items[0]?.label?.slice(0,10) ?? '',
-      label: item => `  ${item.dataset.label.padEnd(12)}: ${item.parsed.y.toFixed(2)} €`
+    const labels  = ['True', 'Pred', 'Peak', 'Yesterday'];
+    const values  = [totalTrue, totalPred, totalPeak, totalYday];
+    const colors  = ['rgba(166,227,161,.70)', 'rgba(137,180,250,.70)', 'rgba(250,179,135,.70)', 'rgba(203,166,247,.70)'];
+    const borders = ['rgba(166,227,161,.95)', 'rgba(137,180,250,.95)', 'rgba(250,179,135,.95)', 'rgba(203,166,247,.95)'];
+
+    const opts = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 150 },
+      scales: {
+        x: {
+          grid:   { color: 'rgba(80,84,128,.25)' },
+          border: { color: '#38385a' },
+          ticks:  { color: '#6870a0', font: { family: 'monospace', size: 12 } }
+        },
+        y: {
+          grid:   { color: 'rgba(80,84,128,.25)' },
+          border: { color: '#38385a' },
+          ticks:  { color: '#6870a0', font: { family: 'monospace', size: 12 } },
+          title:  { display: true, text: 'Total Profit (€)', color: '#505070', font: { size: 12 } }
+        }
+      },
+      plugins: {
+        legend: { display: false },
+        title: {
+          display: true,
+          text: `Profit from ${fromStr} to ${toStr}`,
+          color: '#8890aa',
+          font: { family: 'monospace', size: 12, weight: '600' },
+          padding: { top: 6, bottom: 4 },
+        },
+        tooltip: {
+          backgroundColor: 'rgba(16,16,28,.96)',
+          titleColor: '#cdd6f4',
+          bodyColor: '#8890b8',
+          borderColor: '#38385a',
+          borderWidth: 1,
+          padding: 9,
+          titleFont: { family: 'monospace', size: 13 },
+          bodyFont:  { family: 'monospace', size: 13 },
+          callbacks: {
+            label: item => `  ${item.parsed.y.toFixed(2)} €`
+          }
+        },
+        datalabels: false,
+      }
     };
 
     profitChart = new Chart(ctx, {
-      type: 'line',
+      type: 'bar',
       data: {
-        datasets: [
-          {
-            label: 'Pred (sched)',
-            data: cumulative.map(d => ({ x: d.x, y: d.cumulativePred })),
-            borderColor: 'rgba(166,227,161,.90)',
-            borderWidth: 1.7,
-            backgroundColor: 'rgba(166,227,161,.07)',
-            fill: false,
-            pointRadius: 2,
-            pointHoverRadius: 4,
-            tension: 0.2,
-          },
-          {
-            label: 'True (optimal)',
-            data: cumulative.map(d => ({ x: d.x, y: d.cumulativeTrue })),
-            borderColor: 'rgba(137,180,250,.90)',
-            borderWidth: 1.7,
-            backgroundColor: 'rgba(137,180,250,.07)',
-            fill: false,
-            pointRadius: 2,
-            pointHoverRadius: 4,
-            tension: 0.2,
-          },
-          {
-            label: 'Lost profit',
-            data: cumulative.map(d => ({ x: d.x, y: d.cumulativePred })),
-            borderColor: 'transparent',
-            backgroundColor: 'rgba(243,139,168,.10)',
-            fill: { target: 1, above: 'rgba(243,139,168,.10)', below: 'rgba(243,139,168,.10)' },
-            pointRadius: 0,
-            tension: 0.2,
-          },
-        ]
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors,
+          borderColor: borders,
+          borderWidth: 1,
+          borderRadius: 4,
+        }]
       },
-      options: opts
+      options: opts,
+      plugins: [{
+        id: 'barLabels',
+        afterDatasetDraw(chart) {
+          const { ctx: c, scales: { y } } = chart;
+          const meta = chart.getDatasetMeta(0);
+          meta.data.forEach((bar, i) => {
+            const val = values[i];
+            const label = val.toFixed(2) + ' €';
+            c.save();
+            c.font = '600 12px monospace';
+            c.fillStyle = borders[i];
+            c.textAlign = 'center';
+            c.textBaseline = val >= 0 ? 'bottom' : 'top';
+            const yPos = val >= 0 ? bar.y - 4 : bar.y + 4;
+            c.fillText(label, bar.x, yPos);
+            c.restore();
+          });
+        }
+      }]
     });
   }
 
   function onToggle(key, checked) {
     document.getElementById('tgl-' + key).classList.toggle('off', !checked);
     if (!chart) return;
-    chart.data.datasets[SERIES.findIndex(s => s.key === key)].hidden = !checked;
+    const labelMap = { actual: 'Actual', pi: ['Pred Interval'], ypred: 'Predicted' };
+    const target = labelMap[key];
+    chart.data.datasets.forEach(ds => {
+      if (Array.isArray(target) ? target.includes(ds.label) : ds.label === target)
+        ds.hidden = !checked;
+    });
     chart.update('none');
   }
 
@@ -733,27 +1113,126 @@
     bessChart.update('none');
   }
 
-  function calcPtMetrics(data, field) {
-    if (!data.length) return null;
-    const mae = data.reduce((s,d) => s + Math.abs(d.yTrue - d[field]), 0) / data.length;
-    const rmse = Math.sqrt(data.reduce((s,d) => s + (d.yTrue - d[field])**2, 0) / data.length);
-    // wwMAPE: sum(|error|) / sum(|actual|) — handles negative and near-zero prices correctly
-    const sumAbsErr = data.reduce((s,d) => s + Math.abs(d.yTrue - d[field]), 0);
-    const sumAbsTrue = data.reduce((s,d) => s + Math.abs(d.yTrue), 0);
-    const mape = sumAbsTrue > 0 ? sumAbsErr / sumAbsTrue * 100 : 0;
-    return { mae, rmse, mape };
+  // ── Interval metrics table ────────────────────────────────────────────────
+
+  let metricsRawData = []; // [{ name, pts[], daily[], hasInterval }]
+  let metricsRows    = []; // computed rows for current date range
+  let metricsSortKey = 'name';
+  let metricsSortAsc = true;
+
+  function extractMethodName(filename) {
+    if (filename.startsWith('pto_'))    return filename.replace(/^pto_/, '').replace(/\.csv$/, '');
+    if (filename.startsWith('robust_')) return filename.replace(/^robust_/, '').replace(/\.csv$/, '');
+    return filename.replace(/\.csv$/, '');
   }
 
-  function updatePtMetrics(data) {
-    for (const { id, field } of PT_METRICS) {
-      const m = calcPtMetrics(data, field);
-      document.getElementById(`${id}-mae`).textContent = m ? m.mae.toFixed(4) : '-';
-      document.getElementById(`${id}-rmse`).textContent = m ? m.rmse.toFixed(4) : '-';
-      document.getElementById(`${id}-mape`).textContent = m ? m.mape.toFixed(2) + ' %' : '-';
+  function computeIntervalMetrics(pts, hasInterval) {
+    if (!pts.length) return { mae: NaN, rmse: NaN, wmape: NaN, coverage: NaN, width: NaN };
+    const n = pts.length;
+    const sumAbsErr  = pts.reduce((s, d) => s + Math.abs(d.truePrice - d.yPred), 0);
+    const sumSqErr   = pts.reduce((s, d) => s + (d.truePrice - d.yPred) ** 2,    0);
+    const sumAbsTrue = pts.reduce((s, d) => s + Math.abs(d.truePrice),            0);
+    const mae   = sumAbsErr / n;
+    const rmse  = Math.sqrt(sumSqErr / n);
+    const wmape = sumAbsTrue > 0 ? sumAbsErr / sumAbsTrue * 100 : NaN;
+
+    let coverage = NaN, width = NaN;
+    if (hasInterval && pts[0]?.piLo != null) {
+      const covered = pts.filter(d => d.truePrice >= d.piLo && d.truePrice <= d.piHi).length;
+      coverage = covered / n * 100;
+      width    = pts.reduce((s, d) => s + (d.piHi - d.piLo), 0) / n;
     }
-    document.getElementById('pointRange').textContent = data.length
-            ? `${data.length.toLocaleString()} samples | ${data[0].ts.slice(0,10)} to ${data.at(-1).ts.slice(0,10)}`
-            : '';
+    return { mae, rmse, wmape, coverage, width };
+  }
+
+  async function initMetricsTable() {
+    const res = await fetch('/api/files');
+    if (!res.ok) return;
+    const files = await res.json();
+
+    const results = await Promise.all(files.map(async f => {
+      try {
+        const r = await fetch('/api/schedule-data?file=' + encodeURIComponent(f.file));
+        if (!r.ok) return null;
+        const json = await r.json();
+        return { name: f.name, pts: json.points ?? [], daily: json.dailyProfits ?? [], hasInterval: json.hasInterval ?? false };
+      } catch { return null; }
+    }));
+
+    metricsRawData = results.filter(Boolean);
+  }
+
+  function recomputeMetrics() {
+    if (!metricsRawData.length) return;
+    const from    = dateToMs(document.getElementById('fromDate').value);
+    const to      = dateToMs(document.getElementById('toDate').value) + 86400_000;
+    const fromStr = document.getElementById('fromDate').value;
+    const toStr   = document.getElementById('toDate').value;
+
+    metricsRows = metricsRawData.map(({ name, pts, daily, hasInterval }) => {
+      const fPts   = pts.filter(d => { const t = tsToMs(d.ts); return t >= from && t < to; });
+      const fDaily = daily.filter(d => d.date >= fromStr && d.date <= toStr);
+      const predProfit = fDaily.reduce((s, d) => s + d.predProfit, 0);
+      const trueProfit = fDaily.reduce((s, d) => s + d.trueProfit, 0);
+      return { name, ...computeIntervalMetrics(fPts, hasInterval), predProfit, trueProfit, lostProfit: trueProfit - predProfit };
+    });
+    renderMetricsTable();
+    updatePriceMetrics();
+  }
+
+  function updatePriceMetrics() {
+    const file = document.getElementById('bessFile').value;
+    const row  = document.getElementById('priceMetricsRow');
+    if (!file || !metricsRows.length) { row.style.display = 'none'; return; }
+    const name = extractMethodName(file);
+    const m    = metricsRows.find(r => r.name === name);
+    if (!m) { row.style.display = 'none'; return; }
+
+    const fmtN = (v, dec) => isNaN(v) ? '—' : v.toFixed(dec);
+    document.getElementById('pm-method').textContent = name;
+    document.getElementById('pm-mae').textContent    = fmtN(m.mae,      2);
+    document.getElementById('pm-rmse').textContent   = fmtN(m.rmse,     2);
+    document.getElementById('pm-wmape').textContent  = fmtN(m.wmape,    2) + (isNaN(m.wmape)    ? '' : ' %');
+    document.getElementById('pm-cov').textContent    = fmtN(m.coverage, 1) + (isNaN(m.coverage) ? '' : ' %');
+    document.getElementById('pm-width').textContent  = fmtN(m.width,    2);
+    row.style.display = '';
+  }
+
+  function renderMetricsTable() {
+    const cols = ['name','mae','rmse','wmape','coverage','width','predProfit','trueProfit','lostProfit'];
+    cols.forEach(k => {
+      const th = document.getElementById('mth-' + k);
+      if (th) th.className = k === metricsSortKey ? (metricsSortAsc ? 'sort-asc' : 'sort-desc') : '';
+    });
+
+    const sorted = [...metricsRows].sort((a, b) => {
+      const av = a[metricsSortKey], bv = b[metricsSortKey];
+      if (typeof av === 'string') return metricsSortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+      const an = isNaN(av), bn = isNaN(bv);
+      if (an && bn) return 0; if (an) return 1; if (bn) return -1;
+      return metricsSortAsc ? av - bv : bv - av;
+    });
+
+    const fmt = (v, dec) => isNaN(v) ? '<span class="nan-val">—</span>' : v.toFixed(dec);
+
+    document.getElementById('metricsBody').innerHTML = sorted.map(r => `
+      <tr>
+        <td>${r.name}</td>
+        <td>${fmt(r.mae,         2)}</td>
+        <td>${fmt(r.rmse,        2)}</td>
+        <td>${fmt(r.wmape,       2)}</td>
+        <td>${fmt(r.coverage,    1)}</td>
+        <td>${fmt(r.width,       2)}</td>
+        <td>${fmt(r.predProfit,  2)}</td>
+        <td>${fmt(r.trueProfit,  2)}</td>
+        <td>${fmt(r.lostProfit,  2)}</td>
+      </tr>`).join('');
+  }
+
+  function sortMetrics(key) {
+    if (metricsSortKey === key) metricsSortAsc = !metricsSortAsc;
+    else { metricsSortKey = key; metricsSortAsc = key === 'name'; }
+    renderMetricsTable();
   }
 
   function fmtEur(v) { return v != null ? v.toFixed(2) + ' €' : '-'; }
@@ -762,6 +1241,8 @@
   function updateBessMetrics(s) {
     document.getElementById('bm-pred').textContent = fmtEur(s.predProfit);
     document.getElementById('bm-true').textContent = fmtEur(s.trueProfit);
+    document.getElementById('bm-peak').textContent = fmtEur(s.peakProfit);
+    document.getElementById('bm-yday').textContent = fmtEur(s.ydayProfit);
     document.getElementById('bm-lost').textContent = fmtEur(s.lostProfit);
     document.getElementById('bm-avg').textContent  = fmtEur(s.lostProfitAvg);
     document.getElementById('bm-chm').textContent  = fmtPct(s.chargeMatch);
@@ -770,106 +1251,67 @@
   }
 
   function summariseFilteredBess(schedule, daily) {
-    if (!daily.length) {
-      return {
-        predProfit: 0,
-        trueProfit: 0,
-        lostProfit: 0,
-        lostProfitAvg: 0,
-        chargeMatch: 0,
-        dischargeMatch: 0,
-        daysEvaluated: 0
-      };
-    }
+    if (!daily.length) return { predProfit:0, trueProfit:0, peakProfit:0, ydayProfit:0, lostProfit:0, lostProfitAvg:0, chargeMatch:0, dischargeMatch:0, daysEvaluated:0 };
 
-    const predProfit = daily.reduce((s, d) => s + d.predProfit, 0);
-    const trueProfit = daily.reduce((s, d) => s + d.trueProfit, 0);
+    const predProfit = daily.reduce((s, d) => s + d.predProfit,        0);
+    const trueProfit = daily.reduce((s, d) => s + d.trueProfit,        0);
+    const peakProfit = daily.reduce((s, d) => s + (d.peakProfit ?? 0), 0);
+    const ydayProfit = daily.reduce((s, d) => s + (d.ydayProfit ?? 0), 0);
     const lostProfit = trueProfit - predProfit;
-    const daysEvaluated = daily.length;
+    const n          = daily.length;
 
-    const chargePred = schedule.reduce((s, d) => s + Math.abs(d.chargePred ?? 0), 0);
-    const chargeTrue = schedule.reduce((s, d) => s + Math.abs(d.chargeTrue ?? 0), 0);
-    const dischargePred = schedule.reduce((s, d) => s + Math.abs(d.dischargePred ?? 0), 0);
-    const dischargeTrue = schedule.reduce((s, d) => s + Math.abs(d.dischargeTrue ?? 0), 0);
-
-    const chargeOverlap = schedule.reduce((s, d) => s + Math.min(Math.abs(d.chargePred ?? 0), Math.abs(d.chargeTrue ?? 0)), 0);
-    const dischargeOverlap = schedule.reduce((s, d) => s + Math.min(Math.abs(d.dischargePred ?? 0), Math.abs(d.dischargeTrue ?? 0)), 0);
+    const chargeTrue       = schedule.reduce((s, d) => s + Math.abs(d.chargeTrue ?? 0), 0);
+    const dischargeTrue    = schedule.reduce((s, d) => s + Math.abs(d.dischargeTrue ?? 0), 0);
+    const chargeOverlap    = schedule.reduce((s, d) => s + Math.min(Math.abs(d.charge ?? 0), Math.abs(d.chargeTrue ?? 0)), 0);
+    const dischargeOverlap = schedule.reduce((s, d) => s + Math.min(Math.abs(d.discharge ?? 0), Math.abs(d.dischargeTrue ?? 0)), 0);
 
     return {
-      predProfit,
-      trueProfit,
-      lostProfit,
-      lostProfitAvg: daysEvaluated ? lostProfit / daysEvaluated : 0,
-      chargeMatch: chargeTrue > 0 ? chargeOverlap / chargeTrue : 0,
+      predProfit, trueProfit, peakProfit, ydayProfit, lostProfit,
+      lostProfitAvg:  n ? lostProfit / n : 0,
+      chargeMatch:    chargeTrue    > 0 ? chargeOverlap    / chargeTrue    : 0,
       dischargeMatch: dischargeTrue > 0 ? dischargeOverlap / dischargeTrue : 0,
-      daysEvaluated
+      daysEvaluated:  n,
     };
   }
 
+
   function applySharedRange() {
     const fromEl = document.getElementById('fromDate');
-    const toEl = document.getElementById('toDate');
+    const toEl   = document.getElementById('toDate');
+    if (fromEl.value > toEl.value) toEl.value = fromEl.value;
 
-    if (fromEl.value > toEl.value) {
-      toEl.value = fromEl.value;
-    }
+    const pts   = pointsFiltered();
+    const daily = dailyFiltered();
+    const spanDays = Math.round((dateToMs(toEl.value) - dateToMs(fromEl.value)) / 86400_000) + 1;
 
-    const p = pointFiltered();
-    buildPointChart(p);
-    updatePtMetrics(p);
+    buildPointChart(pts);
+    recomputeMetrics();
 
-    if (bessAllData.length) {
-      const sched = bessFiltered();
-      const daily = dailyFiltered();
-      buildBessChart(sched);
+    if (schedulePoints.length) {
+      buildBessChart(pts, spanDays);
       buildProfitChart(daily);
-      updateBessMetrics(summariseFilteredBess(sched, daily));
+      updateBessMetrics(summariseFilteredBess(pts, daily));
     }
   }
 
   function resetRange() {
-    if (!allData.length) return;
-
-    const min = allData[0].ts.slice(0,10);
-    const max = allData.at(-1).ts.slice(0,10);
-    const start = clampDateStr(DEFAULT_START, min, max);
-    const end   = clampDateStr(DEFAULT_END,   min, max);
-
-    document.getElementById('fromDate').value = start;
-    document.getElementById('toDate').value = end;
+    document.getElementById('fromDate').value = DEFAULT_START;
+    document.getElementById('toDate').value   = DEFAULT_END;
     applySharedRange();
   }
 
   function shiftRange(days) {
-    if (!allData.length) return;
-
-    const min = allData[0].ts.slice(0,10);
-    const max = allData.at(-1).ts.slice(0,10);
-
     const fromStr = document.getElementById('fromDate').value;
-    const toStr = document.getElementById('toDate').value;
-
-    const fromMs = dateToMs(fromStr);
-    const toMs = dateToMs(toStr);
-    const spanMs = Math.max(0, toMs - fromMs);
-
-    let nextFrom = fromMs + days * 86400_000;
-    let nextTo = nextFrom + spanMs;
-
-    const minFrom = dateToMs(min);
-    const maxTo = dateToMs(max);
-
-    if (nextTo > maxTo) {
-      nextTo = maxTo;
-      nextFrom = Math.max(minFrom, nextTo - spanMs);
-    }
-    if (nextFrom < minFrom) {
-      nextFrom = minFrom;
-      nextTo = Math.min(maxTo, nextFrom + spanMs);
-    }
-
+    const toStr   = document.getElementById('toDate').value;
+    const spanMs  = Math.max(0, dateToMs(toStr) - dateToMs(fromStr));
+    let nextFrom  = dateToMs(fromStr) + days * 86400_000;
+    let nextTo    = nextFrom + spanMs;
+    const minMs   = dateToMs(DATE_MIN);
+    const maxMs   = dateToMs(DATE_MAX);
+    if (nextTo   > maxMs) { nextTo = maxMs; nextFrom = Math.max(minMs, nextTo - spanMs); }
+    if (nextFrom < minMs) { nextFrom = minMs; nextTo = Math.min(maxMs, nextFrom + spanMs); }
     document.getElementById('fromDate').value = msToDate(nextFrom);
-    document.getElementById('toDate').value = msToDate(nextTo);
+    document.getElementById('toDate').value   = msToDate(nextTo);
     applySharedRange();
   }
 
@@ -877,14 +1319,10 @@
   function syncRangeFromPointZoom(c) {
     clearTimeout(pointSyncT);
     pointSyncT = setTimeout(() => {
-      const vis = allData.filter(d => {
-        const t = tsToMs(d.ts);
-        return t >= c.scales.x.min && t <= c.scales.x.max;
-      });
+      const vis = schedulePoints.filter(d => { const t = tsToMs(d.ts); return t >= c.scales.x.min && t <= c.scales.x.max; });
       if (!vis.length) return;
-
-      document.getElementById('fromDate').value = vis[0].ts.slice(0,10);
-      document.getElementById('toDate').value = vis.at(-1).ts.slice(0,10);
+      document.getElementById('fromDate').value = vis[0].ts.slice(0, 10);
+      document.getElementById('toDate').value   = vis.at(-1).ts.slice(0, 10);
       applySharedRange();
     }, 120);
   }
@@ -896,44 +1334,11 @@
     }
   }
 
-  async function runBessEval() {
-    const file = document.getElementById('bessFile').value;
-    if (!file) return;
-
-    const status = document.getElementById('bessStatus');
-    const stTxt = document.getElementById('bessStatusTxt');
-    const runBtn = document.getElementById('runBtn');
-
-    status.className = 'bess-status loading';
-    stTxt.textContent = 'Running optimisation...';
-    runBtn.disabled = true;
-
-    try {
-      const res = await fetch('/api/bess-eval', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file })
-      });
-
-      const json = await res.json();
-      if (!res.ok || json.error) throw new Error(json.error || 'Evaluation failed');
-
-      bessAllData = json.schedule ?? [];
-      bessAllDaily = json.dailyProfits ?? [];
-
-      applySharedRange();
-      status.className = 'bess-status';
-    } catch (e) {
-      status.className = 'bess-status error';
-      stTxt.textContent = 'Error: ' + e.message;
-    } finally {
-      runBtn.disabled = false;
-    }
-  }
 
   (async () => {
     try {
-      await Promise.all([initPoint(), initBess()]);
+      await Promise.all([initBess(), initMetricsTable()]);
+      recomputeMetrics();
     } catch (e) {
       document.getElementById('dataInfo').textContent = 'Error: ' + e.message;
     }
